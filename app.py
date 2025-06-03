@@ -1,11 +1,8 @@
-# app.py - Kaplan-Meier Plot Viewer using Streamlit with PNG and JPG support
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
 import io
 import base64
-from PIL import Image  # Required for JPG conversion
 
 # Title and Instructions
 st.title("Kaplan-Meier Survival Curve Viewer")
@@ -30,6 +27,7 @@ if uploaded_file:
     color2 = st.color_picker("Cohort 2 Color", '#ff7f0e')
     label1 = st.text_input("Label for Cohort 1", "Cohort 1")
     label2 = st.text_input("Label for Cohort 2", "Cohort 2")
+    plot_title = st.text_input("Plot Title", "Kaplan-Meier Survival Curve")
     max_days = st.number_input("Maximum Days to Display", min_value=0, max_value=int(df['Time (Days)'].max()), value=int(df['Time (Days)'].max()))
 
     # Step 3: Generate Plot
@@ -63,7 +61,7 @@ if uploaded_file:
                             df_limited['Cohort 2: Survival Probability 95 % CI Upper'],
                             color=color2_use, alpha=ci_alpha)
 
-        ax.set_title('Kaplan-Meier Survival Curve')
+        ax.set_title(plot_title)
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Survival Probability')
         ax.set_ylim(0, 1.05)
@@ -71,28 +69,13 @@ if uploaded_file:
         ax.grid(True)
         st.pyplot(fig)
 
-        # Step 4: Download Options
+        # Step 4: PNG Download
         st.subheader("Download Plot")
-        file_format = st.selectbox("Select format", ["png", "jpg"])
-        download_filename = f"kaplan_meier_curve.{file_format}"
 
-        # Create image download buffer
-        if file_format == 'jpg':
-            # Save PNG first and convert to JPG using Pillow
-            temp_png = io.BytesIO()
-            fig.savefig(temp_png, format='png', dpi=300, bbox_inches='tight')
-            temp_png.seek(0)
-            img = Image.open(temp_png).convert('RGB')
-
-            img_bytes = io.BytesIO()
-            img.save(img_bytes, format='JPEG')
-        else:
-            img_bytes = io.BytesIO()
-            fig.savefig(img_bytes, format='png', dpi=300, bbox_inches='tight')
-
+        img_bytes = io.BytesIO()
+        fig.savefig(img_bytes, format='png', dpi=300, bbox_inches='tight')
         img_bytes.seek(0)
         b64 = base64.b64encode(img_bytes.read()).decode()
-        mime_type = 'jpeg' if file_format == 'jpg' else 'png'
 
-        href = f'<a href="data:image/{mime_type};base64,{b64}" download="{download_filename}">Download {file_format.upper()} File</a>'
+        href = f'<a href="data:image/png;base64,{b64}" download="kaplan_meier_curve.png">Download PNG File</a>'
         st.markdown(href, unsafe_allow_html=True)
