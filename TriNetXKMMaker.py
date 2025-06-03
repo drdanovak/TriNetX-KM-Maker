@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-
+pip install matplotlib
 st.set_page_config(page_title="Kaplan-Meier Curve Generator", layout="centered")
 st.title("Kaplan-Meier Curve Generator")
 
