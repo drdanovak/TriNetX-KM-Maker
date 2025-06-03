@@ -70,14 +70,26 @@ if uploaded_file:
         ax.grid(True)
         st.pyplot(fig)
 
-        # Step 4: Download Options
-        st.subheader("Download Plot")
-        file_format = st.selectbox("Select format", ["png", "jpg"])
-        download_filename = f"kaplan_meier_curve.{file_format}"
-        img_bytes = io.BytesIO()
-        fig.savefig(img_bytes, format=file_format, dpi=300, bbox_inches='tight')
-        img_bytes.seek(0)
-        b64 = base64.b64encode(img_bytes.read()).decode()
+       from PIL import Image
 
-        href = f'<a href="data:image/{file_format};base64,{b64}" download="{download_filename}">Download {file_format.upper()} File</a>'
-        st.markdown(href, unsafe_allow_html=True)
+# ...
+
+if file_format == 'jpg':
+    # Save PNG first and convert to JPG via Pillow
+    temp_png = io.BytesIO()
+    fig.savefig(temp_png, format='png', dpi=300, bbox_inches='tight')
+    temp_png.seek(0)
+    img = Image.open(temp_png).convert('RGB')
+
+    img_bytes = io.BytesIO()
+    img.save(img_bytes, format='JPEG')
+else:
+    # Save directly as PNG
+    img_bytes = io.BytesIO()
+    fig.savefig(img_bytes, format='png', dpi=300, bbox_inches='tight')
+
+img_bytes.seek(0)
+b64 = base64.b64encode(img_bytes.read()).decode()
+
+href = f'<a href="data:image/{file_format};base64,{b64}" download="kaplan_meier_curve.{file_format}">Download {file_format.upper()} File</a>'
+st.markdown(href, unsafe_allow_html=True)
