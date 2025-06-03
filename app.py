@@ -2,7 +2,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
 import io
-import base64
+import re
+from base64 import b64encode
 
 # Title and Instructions
 st.title("Kaplan-Meier Survival Curve Viewer")
@@ -69,13 +70,22 @@ if uploaded_file:
         ax.grid(True)
         st.pyplot(fig)
 
-        # Step 4: PNG Download
+        # Step 4: PNG Download with Button
         st.subheader("Download Plot")
+
+        # Create filename from cleaned title
+        cleaned_title = re.sub(r'[^\w\-_. ]', '', plot_title).strip().replace(" ", "_")
+        filename = f"{cleaned_title or 'kaplan_meier_curve'}.png"
 
         img_bytes = io.BytesIO()
         fig.savefig(img_bytes, format='png', dpi=300, bbox_inches='tight')
         img_bytes.seek(0)
-        b64 = base64.b64encode(img_bytes.read()).decode()
+        b64 = b64encode(img_bytes.read()).decode()
 
-        href = f'<a href="data:image/png;base64,{b64}" download="kaplan_meier_curve.png">Download PNG File</a>'
-        st.markdown(href, unsafe_allow_html=True)
+        download_button = st.download_button(
+            label="Download Plot",
+            data=b64,
+            file_name=filename,
+            mime="image/png",
+            key="download_button"
+        )
