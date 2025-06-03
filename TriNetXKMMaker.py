@@ -1,63 +1,68 @@
-# Python Script for Kaplan-Meier Plot (Standalone Version)
+# Streamlit Kaplan-Meier Curve Web App
+import streamlit as st
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend for Streamlit
 import matplotlib.pyplot as plt
-import argparse
+from io import BytesIO
 
-# Set up argument parser
-parser = argparse.ArgumentParser(description='Generate a Kaplan-Meier curve from a CSV file.')
-parser.add_argument('--file', required=True, help='Path to the Kaplan-Meier CSV file')
-parser.add_argument('--label1', default='Cohort 1', help='Label for Cohort 1')
-parser.add_argument('--label2', default='Cohort 2', help='Label for Cohort 2')
-parser.add_argument('--color1', default='blue', help='Color for Cohort 1')
-parser.add_argument('--color2', default='orange', help='Color for Cohort 2')
-parser.add_argument('--style', choices=['color', 'bw'], default='color', help='Plot style')
-parser.add_argument('--max_days', type=int, default=None, help='Maximum number of days to include')
-parser.add_argument('--output', default='kaplan_meier_curve.png', help='Output filename for the plot')
-args = parser.parse_args()
+st.set_page_config(page_title="Kaplan-Meier Curve Generator", layout="centered")
+st.title("Kaplan-Meier Curve Generator")
 
-# Read data
-df = pd.read_csv(args.file)
-df.columns = df.columns.str.strip()
-df.fillna(method='ffill', inplace=True)
+# Step 1: File upload
+uploaded_file = st.file_uploader("Upload your Kaplan-Meier CSV file")
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+    df.columns = df.columns.str.strip()
+    df.fillna(method='ffill', inplace=True)
 
-if args.max_days:
-    df = df[df['Time (Days)'] <= args.max_days]
+    # Step 2: User Parameters
+    st.subheader("Display Parameters")
+    style = st.radio("Select style", ['Color', 'Black & White'])
+    cohort1_color = st.color_picker("Cohort 1 Color", '#1f77b4')
+    cohort2_color = st.color_picker("Cohort 2 Color", '#ff7f0e')
+    label1 = st.text_input("Cohort 1 Label", "Cohort 1")
+    label2 = st.text_input("Cohort 2 Label", "Cohort 2")
+    max_days = st.number_input("Max Days", 0, int(df['Time (Days)'].max()), value=int(df['Time (Days)'].max()))
 
-# Prepare figure
-fig, ax = plt.subplots(figsize=(10, 6))
-time = df['Time (Days)']
+    # Step 3: Plotting
+    df = df[df['Time (Days)'] <= max_days]
+    time = df['Time (Days)']
 
-# Select colors
-if args.style == 'bw':
-    color1, color2 = 'black', 'gray'
-    alpha = 0.1
-else:
-    color1, color2 = args.color1, args.color2
-    alpha = 0.2
+    fig, ax = plt.subplots(figsize=(10, 6))
 
-# Plot Cohort 1
-ax.plot(time, df['Cohort 1: Survival Probability'], label=args.label1, color=color1, linewidth=2)
-if 'Cohort 1: Survival Probability 95 % CI Lower' in df.columns:
-    ax.fill_between(time,
-                    df['Cohort 1: Survival Probability 95 % CI Lower'],
-                    df['Cohort 1: Survival Probability 95 % CI Upper'],
-                    color=color1, alpha=alpha)
+    if style == 'Black & White':
+        color1, color2, alpha = 'black', 'gray', 0.1
+    else:
+        color1, color2, alpha = cohort1_color, cohort2_color, 0.2
 
-# Plot Cohort 2
-ax.plot(time, df['Cohort 2: Survival Probability'], label=args.label2, color=color2, linewidth=2)
-if 'Cohort 2: Survival Probability 95 % CI Lower' in df.columns:
-    ax.fill_between(time,
-                    df['Cohort 2: Survival Probability 95 % CI Lower'],
-                    df['Cohort 2: Survival Probability 95 % CI Upper'],
-                    color=color2, alpha=alpha)
+    ax.plot(time, df['Cohort 1: Survival Probability'], label=label1, color=color1, linewidth=2)
+    if 'Cohort 1: Survival Probability 95 % CI Lower' in df.columns:
+        ax.fill_between(time,
+                        df['Cohort 1: Survival Probability 95 % CI Lower'],
+                        df['Cohort 1: Survival Probability 95 % CI Upper'],
+                        alpha=alpha, color=color1)
 
-# Final formatting
-ax.set_title('Kaplan-Meier Survival Curve')
-ax.set_xlabel('Time (Days)')
-ax.set_ylabel('Survival Probability')
-ax.set_ylim(0, 1.05)
-ax.legend()
-ax.grid(True)
-plt.tight_layout()
-plt.savefig(args.output)
-print(f"Plot saved as {args.output}")
+    ax.plot(time, df['Cohort 2: Survival Probability'], label=label2, color=color2, linewidth=2)
+    if 'Cohort 2: Survival Probability 95 % CI Lower' in df.columns:
+        ax.fill_between(time,
+                        df['Cohort 2: Survival Probability 95 % CI Lower'],
+                        df['Cohort 2: Survival Probability 95 % CI Upper'],
+                        alpha=alpha, color=color2)
+
+    ax.set_title("Kaplan-Meier Survival Curve")
+    ax.set_xlabel("Time (Days)")
+    ax.set_ylabel("Survival Probability")
+    ax.set_ylim(0, 1.05)
+    ax.legend()
+    ax.grid(True)
+    st.pyplot(fig)
+
+    # Step 4: Download option
+    def fig_to_bytes(fig):
+        buf = BytesIO()
+        fig.savefig(buf, format="png")
+        buf.seek(0)
+        return buf.getvalue()
+
+    st.download_button("Download Figure as PNG", data=fig_to_bytes(fig), file_name="kaplan_meier_curve.png")
