@@ -1,4 +1,3 @@
-streamlit run app.py
 # app.py - Kaplan-Meier Plot Viewer using Streamlit
 
 import pandas as pd
