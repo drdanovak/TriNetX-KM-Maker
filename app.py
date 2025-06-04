@@ -10,7 +10,7 @@ st.title("Kaplan-Meier Survival Curve Maker")
 st.markdown("Upload your Kaplan-Meier CSV output from TriNetX. The tool will clean the file, plot the survival curve, and provide you with a PNG file for your manuscript or poster.")
 
 # Step 1: File Upload
-uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+uploaded_file = st.file_uploader("Upload CSV file that you downloaded from TriNetX", type=["csv"])
 if uploaded_file:
     lines = uploaded_file.getvalue().decode("utf-8").splitlines()
     header_keywords = ["Time (Days)", "Cohort 1: Survival Probability"]
@@ -22,7 +22,7 @@ if uploaded_file:
     df.fillna(method='ffill', inplace=True)
 
     # Step 2: User Parameters
-    st.subheader("Display Parameters")
+    st.subheader("Customize Your Graph")
     style = st.radio("Style", ['Color', 'Black & White'])
     color1 = st.color_picker("Cohort 1 Color", '#1f77b4')
     color2 = st.color_picker("Cohort 2 Color", '#ff7f0e')
