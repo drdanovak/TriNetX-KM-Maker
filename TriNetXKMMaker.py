@@ -1,101 +1,118 @@
-# Kaplan-Meier Plot Script for Google Colab
+# app.py - Feature-rich Kaplan-Meier Plot Viewer using Streamlit
+
 import pandas as pd
 import matplotlib.pyplot as plt
-from IPython.display import display
-import ipywidgets as widgets
-from google.colab import files
+import streamlit as st
 import io
+import base64
+import re
+from PIL import Image
+import numpy as np
+from lifelines import CoxPHFitter, KaplanMeierFitter
+from lifelines.statistics import logrank_test
 
-# Step 1: File upload widget
-print("Step 1: Upload your Kaplan-Meier CSV file")
-uploaded = files.upload()
-filename = next(iter(uploaded))
+# Title and Instructions
+st.title("Kaplan-Meier Survival Curve Viewer")
+st.markdown("Upload your Kaplan-Meier CSV output. Customize the visualization and download a publication-ready figure.")
 
-# Automatically detect and skip irrelevant rows
-lines = io.StringIO(uploaded[filename].decode('utf-8')).readlines()
-header_keywords = ["Time (Days)", "Cohort 1: Survival Probability"]
-header_row_idx = next(i for i, line in enumerate(lines) if all(keyword in line for keyword in header_keywords))
-df = pd.read_csv(io.BytesIO(uploaded[filename]), skiprows=header_row_idx)
+# Step 1: File Upload
+uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+if uploaded_file:
+    lines = uploaded_file.getvalue().decode("utf-8").splitlines()
+    header_keywords = ["Time (Days)", "Cohort 1: Survival Probability"]
+    header_row_idx = next(i for i, line in enumerate(lines) if all(k in line for k in header_keywords))
+    df = pd.read_csv(uploaded_file, skiprows=header_row_idx)
 
-# Clean column names and fill missing data
-df.columns = df.columns.str.strip()
-df.fillna(method='ffill', inplace=True)
+    # Clean data
+    df.columns = df.columns.str.strip()
+    df.sort_values('Time (Days)', inplace=True)
+    df[['Cohort 1: Survival Probability', 'Cohort 2: Survival Probability',
+       'Cohort 1: Survival Probability 95 % CI Lower', 'Cohort 1: Survival Probability 95 % CI Upper',
+       'Cohort 2: Survival Probability 95 % CI Lower', 'Cohort 2: Survival Probability 95 % CI Upper']] = \
+    df[['Cohort 1: Survival Probability', 'Cohort 2: Survival Probability',
+        'Cohort 1: Survival Probability 95 % CI Lower', 'Cohort 1: Survival Probability 95 % CI Upper',
+        'Cohort 2: Survival Probability 95 % CI Lower', 'Cohort 2: Survival Probability 95 % CI Upper']].ffill()
 
-# Step 2: Parameter selection
-print("\nStep 2: Set your display parameters")
-style_selector = widgets.ToggleButtons(
-    options=['Color', 'Black & White'],
-    description='Style:',
-    disabled=False
-)
-color1_picker = widgets.ColorPicker(description="Cohort 1 Color", value='blue')
-color2_picker = widgets.ColorPicker(description="Cohort 2 Color", value='orange')
-cohort1_name = widgets.Text(value='Cohort 1', description='Label 1:')
-cohort2_name = widgets.Text(value='Cohort 2', description='Label 2:')
-max_days = widgets.IntText(value=int(df['Time (Days)'].max()), description='Max Days:')
+    # Step 2: User Parameters
+    st.sidebar.header("Customize Plot")
 
-param_widgets = widgets.VBox([style_selector, color1_picker, color2_picker, cohort1_name, cohort2_name, max_days])
-display(param_widgets)
+    plot_title = st.sidebar.text_input("Plot Title", "Kaplan-Meier Survival Curve")
+    label1 = st.sidebar.text_input("Label for Cohort 1", "Cohort 1")
+    label2 = st.sidebar.text_input("Label for Cohort 2", "Cohort 2")
 
-# Step 3: Run analysis button
-run_button = widgets.Button(description="Run Analysis")
-output_area = widgets.Output()
+    x_label = st.sidebar.text_input("X-axis Label", "Time (Days)")
+    y_label = st.sidebar.text_input("Y-axis Label", "Survival Probability")
 
-def on_run_button_clicked(b):
-    with output_area:
-        output_area.clear_output()
-        df_limited = df[df['Time (Days)'] <= max_days.value]
+    style = st.sidebar.radio("Color Scheme", ['Color', 'Black & White'])
+    color1 = st.sidebar.color_picker("Cohort 1 Color", '#1f77b4')
+    color2 = st.sidebar.color_picker("Cohort 2 Color", '#ff7f0e')
+
+    line_width = st.sidebar.slider("Line Width", 1.0, 5.0, 2.0)
+    show_ci = st.sidebar.checkbox("Show Confidence Intervals", True)
+    ci_alpha = st.sidebar.slider("CI Transparency", 0.0, 1.0, 0.2)
+
+    show_grid = st.sidebar.checkbox("Show Grid", True)
+    fig_width = st.sidebar.slider("Figure Width (inches)", 6, 16, 10)
+    fig_height = st.sidebar.slider("Figure Height (inches)", 4, 10, 6)
+
+    y_min = st.sidebar.slider("Y-axis Min", 0.0, 1.0, 0.0)
+    y_max = st.sidebar.slider("Y-axis Max", 0.0, 1.5, 1.05)
+
+    title_fontsize = st.sidebar.slider("Title Font Size", 10, 30, 16)
+    label_fontsize = st.sidebar.slider("Axis Label Font Size", 10, 20, 12)
+    tick_fontsize = st.sidebar.slider("Tick Label Font Size", 8, 16, 10)
+    legend_fontsize = st.sidebar.slider("Legend Font Size", 8, 16, 12)
+
+    max_days = st.sidebar.number_input("Maximum Days to Display", min_value=0, max_value=int(df['Time (Days)'].max()), value=int(df['Time (Days)'].max()))
+
+    # Step 3: Generate Plot
+    if st.button("Generate Plot"):
+        df_limited = df[df['Time (Days)'] <= max_days]
         time = df_limited['Time (Days)']
 
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(fig_width, fig_height))
 
-        if style_selector.value == 'Black & White':
-            color1, color2 = 'black', 'gray'
-            ci_alpha = 0.1
+        if style == 'Black & White':
+            color1_use, color2_use = 'black', 'gray'
         else:
-            color1, color2 = color1_picker.value, color2_picker.value
-            ci_alpha = 0.2
+            color1_use, color2_use = color1, color2
 
-        ax.plot(time, df_limited['Cohort 1: Survival Probability'], label=cohort1_name.value, color=color1, linewidth=2)
-        if 'Cohort 1: Survival Probability 95 % CI Lower' in df.columns:
+        ax.plot(time, df_limited['Cohort 1: Survival Probability'], label=label1, color=color1_use, linewidth=line_width)
+        if show_ci and 'Cohort 1: Survival Probability 95 % CI Lower' in df.columns:
             ax.fill_between(time,
                             df_limited['Cohort 1: Survival Probability 95 % CI Lower'],
                             df_limited['Cohort 1: Survival Probability 95 % CI Upper'],
-                            alpha=ci_alpha, color=color1)
+                            color=color1_use, alpha=ci_alpha)
 
-        ax.plot(time, df_limited['Cohort 2: Survival Probability'], label=cohort2_name.value, color=color2, linewidth=2)
-        if 'Cohort 2: Survival Probability 95 % CI Lower' in df.columns:
+        ax.plot(time, df_limited['Cohort 2: Survival Probability'], label=label2, color=color2_use, linewidth=line_width)
+        if show_ci and 'Cohort 2: Survival Probability 95 % CI Lower' in df.columns:
             ax.fill_between(time,
                             df_limited['Cohort 2: Survival Probability 95 % CI Lower'],
                             df_limited['Cohort 2: Survival Probability 95 % CI Upper'],
-                            alpha=ci_alpha, color=color2)
+                            color=color2_use, alpha=ci_alpha)
 
-        ax.set_title('Kaplan-Meier Survival Curve')
-        ax.set_xlabel('Time (Days)')
-        ax.set_ylabel('Survival Probability')
-        ax.set_ylim(0, 1.05)
-        ax.legend()
-        ax.grid(True)
-        plt.tight_layout()
-        plt.show()
+        ax.set_title(plot_title, fontsize=title_fontsize)
+        ax.set_xlabel(x_label, fontsize=label_fontsize)
+        ax.set_ylabel(y_label, fontsize=label_fontsize)
+        ax.set_ylim(y_min, y_max)
+        ax.tick_params(axis='both', labelsize=tick_fontsize)
+        ax.legend(fontsize=legend_fontsize)
+        if show_grid:
+            ax.grid(True)
 
-        # Save format selector and save button
-        format_selector = widgets.Dropdown(
-            options=['png', 'jpg'],
-            value='png',
-            description='Format:',
+        st.pyplot(fig)
+
+        # Step 5: PNG Download with Button
+        cleaned_title = re.sub(r'[^\w\-_. ]', '', plot_title).strip().replace(" ", "_")
+        filename = f"{cleaned_title or 'kaplan_meier_curve'}.png"
+
+        img_bytes = io.BytesIO()
+        fig.savefig(img_bytes, format='png', dpi=300, bbox_inches='tight')
+        img_bytes.seek(0)
+
+        st.download_button(
+            label="Download Plot",
+            data=img_bytes,
+            file_name=filename,
+            mime="image/png"
         )
-
-        save_button = widgets.Button(description="Download Figure")
-
-        def save_fig_callback(button):
-            fmt = format_selector.value
-            file_name = f"kaplan_meier_curve.{fmt}"
-            fig.savefig(file_name, format=fmt, dpi=300)
-            files.download(file_name)
-
-        save_button.on_click(save_fig_callback)
-        display(widgets.HBox([format_selector, save_button]))
-
-run_button.on_click(on_run_button_clicked)
-display(run_button, output_area)
