@@ -6,8 +6,8 @@ import re
 from base64 import b64encode
 
 # Title and Instructions
-st.title("Kaplan-Meier Survival Curve Viewer")
-st.markdown("Upload your Kaplan-Meier CSV output. The tool will clean the file and plot the survival curve.")
+st.title("Kaplan-Meier Survival Curve Maker")
+st.markdown("Upload your Kaplan-Meier CSV output from TriNetX. The tool will clean the file, plot the survival curve, and provide you with a PNG file for your manuscript or poster.")
 
 # Step 1: File Upload
 uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
