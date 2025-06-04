@@ -25,7 +25,8 @@ if uploaded_file:
 
     # Clean data
     df.columns = df.columns.str.strip()
-    df.fillna(method='ffill', inplace=True)
+    df.sort_values('Time (Days)', inplace=True)
+    df[['Cohort 1: Survival Probability', 'Cohort 2: Survival Probability']] = df[['Cohort 1: Survival Probability', 'Cohort 2: Survival Probability']].ffill()
 
     # Step 2: User Parameters
     st.sidebar.header("Customize Plot")
