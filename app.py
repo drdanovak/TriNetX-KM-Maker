@@ -12,8 +12,8 @@ from lifelines import CoxPHFitter, KaplanMeierFitter
 from lifelines.statistics import logrank_test
 
 # Title and Instructions
-st.title("Kaplan-Meier Survival Curve Maker")
-st.markdown("Upload your Kaplan-Meier CSV output download from TriNetX. Customize the visualization using the settings in this app and download a publication-ready figure.")
+st.title("Novak's Kaplan-Meier Survival Curve Maker")
+st.markdown("Upload your Kaplan-Meier CSV output download from TriNetX. Customize the visualization using the settings in this app and download a publication-ready figure. Created by Dr. Daniel Novak, UC Riverside School of Medicine, 2025")
 
 # Step 1: File Upload
 uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
