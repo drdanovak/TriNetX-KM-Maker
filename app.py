@@ -26,7 +26,12 @@ if uploaded_file:
     # Clean data
     df.columns = df.columns.str.strip()
     df.sort_values('Time (Days)', inplace=True)
-    df[['Cohort 1: Survival Probability', 'Cohort 2: Survival Probability']] = df[['Cohort 1: Survival Probability', 'Cohort 2: Survival Probability']].ffill()
+    df[['Cohort 1: Survival Probability', 'Cohort 2: Survival Probability',
+       'Cohort 1: Survival Probability 95 % CI Lower', 'Cohort 1: Survival Probability 95 % CI Upper',
+       'Cohort 2: Survival Probability 95 % CI Lower', 'Cohort 2: Survival Probability 95 % CI Upper']] = \
+    df[['Cohort 1: Survival Probability', 'Cohort 2: Survival Probability',
+        'Cohort 1: Survival Probability 95 % CI Lower', 'Cohort 1: Survival Probability 95 % CI Upper',
+        'Cohort 2: Survival Probability 95 % CI Lower', 'Cohort 2: Survival Probability 95 % CI Upper']].ffill()
 
     # Step 2: User Parameters
     st.sidebar.header("Customize Plot")
