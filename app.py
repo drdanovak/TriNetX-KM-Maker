@@ -99,14 +99,21 @@ if uploaded_file:
         # Step 4: Statistical Overlays
         st.subheader("Statistical Overlays")
         try:
-            group = (df_limited['Cohort 2: Survival Probability'].notnull()).astype(int)
-            df_events = pd.DataFrame({
-                'time': df_limited['Time (Days)'],
-                'event': np.ones(len(df_limited)),
-                'group': group
-            }).dropna()
+            mask1 = df_limited['Cohort 1: Survival Probability'].notnull()
+            mask2 = df_limited['Cohort 2: Survival Probability'].notnull()
 
-            if df_events['group'].nunique() == 2 and not df_events.isnull().any().any():
+            df_cohort1 = df_limited[mask1].copy()
+            df_cohort1['group'] = 0
+
+            df_cohort2 = df_limited[mask2].copy()
+            df_cohort2['group'] = 1
+
+            df_events = pd.concat([df_cohort1, df_cohort2])
+            df_events = df_events[['Time (Days)', 'group']].rename(columns={'Time (Days)': 'time'})
+            df_events['event'] = 1
+            df_events = df_events.dropna()
+
+            if df_events['group'].nunique() == 2:
                 results = logrank_test(
                     df_events[df_events['group'] == 0]['time'],
                     df_events[df_events['group'] == 1]['time'],
@@ -123,7 +130,7 @@ if uploaded_file:
                 st.markdown(f"**Hazard Ratio (Cohort 2 vs. Cohort 1):** {hr:.3f}  ")
                 st.markdown(f"**95% CI:** ({ci[0]:.3f}, {ci[1]:.3f})")
             else:
-                st.warning("Cox model could not be computed: one of the groups is missing or data contains invalid values.")
+                st.warning("Cox model could not be computed: both cohorts must be present.")
         except Exception as e:
             st.warning(f"Statistical overlays could not be computed: {e}")
 
