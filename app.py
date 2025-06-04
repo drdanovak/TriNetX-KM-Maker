@@ -102,44 +102,6 @@ if uploaded_file:
 
         st.pyplot(fig)
 
-        # Step 4: Statistical Overlays
-        st.subheader("Statistical Overlays")
-        try:
-            mask1 = df_limited['Cohort 1: Survival Probability'].notnull()
-            mask2 = df_limited['Cohort 2: Survival Probability'].notnull()
-
-            df_cohort1 = df_limited[mask1].copy()
-            df_cohort1['group'] = 0
-
-            df_cohort2 = df_limited[mask2].copy()
-            df_cohort2['group'] = 1
-
-            df_events = pd.concat([df_cohort1, df_cohort2])
-            df_events = df_events[['Time (Days)', 'group']].rename(columns={'Time (Days)': 'time'})
-            df_events['event'] = 1
-            df_events = df_events.dropna()
-
-            if df_events['group'].nunique() == 2:
-                results = logrank_test(
-                    df_events[df_events['group'] == 0]['time'],
-                    df_events[df_events['group'] == 1]['time'],
-                    event_observed_A=df_events[df_events['group'] == 0]['event'],
-                    event_observed_B=df_events[df_events['group'] == 1]['event']
-                )
-                p_val = results.p_value
-                st.markdown(f"**Log-Rank Test p-value:** {p_val:.4g}")
-
-                cph = CoxPHFitter()
-                cph.fit(df_events, duration_col='time', event_col='event')
-                hr = cph.hazard_ratios_['group']
-                ci = cph.confidence_intervals_.loc['group']
-                st.markdown(f"**Hazard Ratio (Cohort 2 vs. Cohort 1):** {hr:.3f}  ")
-                st.markdown(f"**95% CI:** ({ci[0]:.3f}, {ci[1]:.3f})")
-            else:
-                st.warning("Cox model could not be computed: both cohorts must be present.")
-        except Exception as e:
-            st.warning(f"Statistical overlays could not be computed: {e}")
-
         # Step 5: PNG Download with Button
         cleaned_title = re.sub(r'[^\w\-_. ]', '', plot_title).strip().replace(" ", "_")
         filename = f"{cleaned_title or 'kaplan_meier_curve'}.png"
