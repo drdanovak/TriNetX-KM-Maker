@@ -99,29 +99,31 @@ if uploaded_file:
         # Step 4: Statistical Overlays
         st.subheader("Statistical Overlays")
         try:
-            time = df_limited['Time (Days)']
             group = (df_limited['Cohort 2: Survival Probability'].notnull()).astype(int)
             df_events = pd.DataFrame({
-                'time': time,
-                'event': np.ones(len(time)),
+                'time': df_limited['Time (Days)'],
+                'event': np.ones(len(df_limited)),
                 'group': group
             }).dropna()
 
-            results = logrank_test(
-                df_events[df_events['group'] == 0]['time'],
-                df_events[df_events['group'] == 1]['time'],
-                event_observed_A=df_events[df_events['group'] == 0]['event'],
-                event_observed_B=df_events[df_events['group'] == 1]['event']
-            )
-            p_val = results.p_value
-            st.markdown(f"**Log-Rank Test p-value:** {p_val:.4g}")
+            if df_events['group'].nunique() == 2 and not df_events.isnull().any().any():
+                results = logrank_test(
+                    df_events[df_events['group'] == 0]['time'],
+                    df_events[df_events['group'] == 1]['time'],
+                    event_observed_A=df_events[df_events['group'] == 0]['event'],
+                    event_observed_B=df_events[df_events['group'] == 1]['event']
+                )
+                p_val = results.p_value
+                st.markdown(f"**Log-Rank Test p-value:** {p_val:.4g}")
 
-            cph = CoxPHFitter()
-            cph.fit(df_events, duration_col='time', event_col='event')
-            hr = cph.hazard_ratios_['group']
-            ci = cph.confidence_intervals_.loc['group']
-            st.markdown(f"**Hazard Ratio (Cohort 2 vs. Cohort 1):** {hr:.3f}  ")
-            st.markdown(f"**95% CI:** ({ci[0]:.3f}, {ci[1]:.3f})")
+                cph = CoxPHFitter()
+                cph.fit(df_events, duration_col='time', event_col='event')
+                hr = cph.hazard_ratios_['group']
+                ci = cph.confidence_intervals_.loc['group']
+                st.markdown(f"**Hazard Ratio (Cohort 2 vs. Cohort 1):** {hr:.3f}  ")
+                st.markdown(f"**95% CI:** ({ci[0]:.3f}, {ci[1]:.3f})")
+            else:
+                st.warning("Cox model could not be computed: one of the groups is missing or data contains invalid values.")
         except Exception as e:
             st.warning(f"Statistical overlays could not be computed: {e}")
 
